@@ -1,18 +1,12 @@
 package api.users;
 
-import io.restassured.RestAssured;
-import org.junit.BeforeClass;
+import api.base.BaseApiTest;
 import org.junit.Test;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
-public class GetUsersTest {
-
-    @BeforeClass
-    public static void setup() {
-        RestAssured.baseURI = "http://localhost:3100";
-    }
+public class GetUsersTest extends BaseApiTest {
 
     @Test
     public void shouldReturnListOfUsers() {

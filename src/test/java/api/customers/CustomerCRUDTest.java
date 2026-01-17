@@ -1,46 +1,21 @@
 package api.customers;
 
-import io.restassured.RestAssured;
-import org.junit.Before;
+import api.base.BaseApiTest;
 import org.junit.Test;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
-public class CustomerCRUDTest {
-
-    @Before
-    public void setup() {
-        RestAssured.baseURI = "http://localhost:3100";
-        RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
-    }
+public class CustomerCRUDTest extends BaseApiTest {
 
     @Test
-    public void CRUDShouldWork() {
+    public void CRUDShouldWork ()  {
 
         //another way of passing body
 //        Map<String, Object> requestBody = new Hashtable<>();
 //        requestBody.put("name", "JUnit User");
 //        requestBody.put("email","junit.user@example.com");
-        int customerId =
-                given()
-                        .contentType("application/json")
-                        .body("""
-                                {
-                                  "name": "JUnit User",
-                                  "email": "junit.user@example.com"
-                                 }
-                                
-                                """)
-                        .when()
-                        .post("/customers")
-                        .then()
-                        .statusCode(201)
-                        .body("id", notNullValue())
-                        .body("name", equalTo("JUnit User"))
-                        .body("email", equalTo("junit.user@example.com"))
-                        .extract()
-                        .path("id");
+        int customerId = createCustomer("JUnit User", "junit.user@example.com");
 
 
         //2. fetch customer by id
@@ -56,12 +31,7 @@ public class CustomerCRUDTest {
 
 
         //3. delete customer
-        given()
-                .pathParam("id", customerId)
-                .when()
-                .delete("/customers/{id}")
-                .then()
-                .statusCode(anyOf(is(200),is(204)));
+        deleteCustomer(customerId);
 
         // 4. verify customer is deleted
         given()
@@ -73,7 +43,17 @@ public class CustomerCRUDTest {
 
     }
 
+    @Test
+    public void shouldReturn404WhenCustomerDoesNotExist() {
+
+        given()
+                .pathParam("id", 9999)
+                .when()
+                .get("/customers/{id}")
+                .then()
+                .statusCode(404);
+    }
+
 
 }
-
 

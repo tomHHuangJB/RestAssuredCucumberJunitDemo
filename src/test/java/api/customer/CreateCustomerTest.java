@@ -1,8 +1,7 @@
 package api.customer;
 
 
-import io.restassured.RestAssured;
-import org.junit.BeforeClass;
+import api.base.BaseApiTest;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -15,12 +14,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.is;
 
-public class CreateCustomerTest {
-
-    @BeforeClass
-    public static void setUp() {
-        RestAssured.baseURI = "http://localhost:3100";
-    }
+public class CreateCustomerTest extends BaseApiTest {
 
     @Test
     public void shouldCreateCustomerSuccessfully() {

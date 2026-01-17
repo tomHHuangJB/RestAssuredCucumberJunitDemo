@@ -30,14 +30,31 @@ apiTest2/
 
 Start the API backend:
 
-docker rm -f json-server 2>/dev/null || true
-docker run \
-  --name json-server \
-  -p 3100:80 \
-  -v $(pwd)/docker/db.json:/data/db.json \
-  -v $(pwd)/docker/middleware.js:/middleware.js \
-  clue/json-server \
-  --middlewares /middleware.js
+docker rm -f api-backend 2>/dev/null || true
+docker run -d \
+--name api-backend \
+-p 3100:80 \
+-v "$(pwd)/db/db.json:/data/db.json" \
+-v "$(pwd)/middleware.js:/middleware.js" \
+clue/json-server \
+--watch /data/db.json \
+--middlewares /middleware.js
+
+or If you want the validation middleware from db/middleware.js, use this variant:
+
+docker rm -f api-backend 2>/dev/null || true
+docker run -d \
+--name api-backend \
+-p 3100:80 \
+-v "$(pwd)/db/db.json:/data/db.json" \
+-v "$(pwd)/db/middleware.js:/middleware.js" \
+clue/json-server \
+--watch /data/db.json \
+--middlewares /middleware.js
+
+check log for docker issue:
+docker logs api-backend
+
 
 Base URL:
 
