@@ -7,6 +7,17 @@ on:
   pull_request:
     branches:
       - "**"
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: "Which tests to run"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - junit
+          - cucumber
 
 jobs:
   build:
@@ -41,17 +52,39 @@ jobs:
       - name: Wait for API to be ready
         run: |
           for i in {1..20}; do
-            curl -s http://localhost:3100/customers && break
+            if curl -s http://localhost:3100/customers > /dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
             echo "Waiting for API..."
             sleep 2
           done
+          echo "API did not become ready in time"
+          exit 1
 
       - name: Run tests
-        run: ./gradlew clean test
+        env:
+          TEST_SCOPE: ${{ github.event.inputs.test_scope || 'all' }}
+        run: |
+          echo "Test scope: $TEST_SCOPE"
+
+          if [ "$TEST_SCOPE" = "junit" ]; then
+            ./gradlew clean test --tests "api.*"
+          elif [ "$TEST_SCOPE" = "cucumber" ]; then
+            ./gradlew clean test -Dcucumber.filter.tags="@bdd"
+          else
+            ./gradlew clean test
+          fi
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-test-reports
+          path: build/reports/tests/test
 
       - name: Stop API backend
         if: always()
         run: |
           docker stop api-backend
           docker rm api-backend
-
