@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Start API backend (json-server via Docker)
+        run: |
+          docker run -d \
+            --name api-backend \
+            -p 3100:3000 \
+            -v ${{ github.workspace }}/db.json:/data/db.json \
+            -v ${{ github.workspace }}/middleware.js:/data/middleware.js \
+            clue/json-server \
+            --watch /data/db.json \
+            --middlewares /data/middleware.js \
+            --port 3000
+
+      - name: Wait for API to be ready
+        run: |
+          for i in {1..20}; do
+            curl -s http://localhost:3100/customers && break
+            echo "Waiting for API..."
+            sleep 2
+          done
+
+      - name: Run tests
+        run: ./gradlew clean test
+
+      - name: Stop API backend
+        if: always()
+        run: |
+          docker stop api-backend
+          docker rm api-backend
+
