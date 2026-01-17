@@ -1,3 +1,6 @@
+[![CI](https://github.com/tomHHuangJB/RestAssuredCucumberJunitDemo/actions/workflows/ci.yml/badge.svg)](
+https://github.com/tomHHuangJB/RestAssuredCucumberJunitDemo/actions/workflows/ci.yml
+)
 
 # API Test Automation Demo (JUnit + Cucumber)
 

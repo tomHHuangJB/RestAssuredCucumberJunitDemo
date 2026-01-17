@@ -3,10 +3,21 @@ name: CI
 on:
   push:
     branches:
-      - "**"
+      - master          # push builds ONLY on master
   pull_request:
     branches:
-      - "**"
+      - "**"            # PR builds on all branches
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: "Which tests to run"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - junit
+          - cucumber
 
 jobs:
   build:
@@ -26,32 +37,87 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
+      # ----------------------------
+      # Start API backend (json-server)
+      # ----------------------------
       - name: Start API backend (json-server via Docker)
         run: |
           docker run -d \
             --name api-backend \
-            -p 3100:3000 \
-            -v ${{ github.workspace }}/db.json:/data/db.json \
-            -v ${{ github.workspace }}/middleware.js:/data/middleware.js \
+            -p 3100:80 \
+            -v ${{ github.workspace }}/db/db.json:/data/db.json \
+            -v ${{ github.workspace }}/db/middleware.js:/middleware.js \
             clue/json-server \
             --watch /data/db.json \
-            --middlewares /data/middleware.js \
-            --port 3000
+            --middlewares /middleware.js
 
+      # ----------------------------
+      # Wait for backend readiness
+      # ----------------------------
       - name: Wait for API to be ready
         run: |
           for i in {1..20}; do
-            curl -s http://localhost:3100/customers && break
+            if curl -s http://localhost:3100/customers > /dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
             echo "Waiting for API..."
             sleep 2
           done
+          echo "API did not become ready in time"
+          exit 1
 
+      # ----------------------------
+      # Run tests
+      # ----------------------------
       - name: Run tests
-        run: ./gradlew clean test
+        env:
+          TEST_SCOPE: ${{ github.event.inputs.test_scope || 'all' }}
+        run: |
+          echo "Test scope: $TEST_SCOPE"
 
+          if [ "$TEST_SCOPE" = "junit" ]; then
+            ./gradlew clean test --tests "api.*"
+          elif [ "$TEST_SCOPE" = "cucumber" ]; then
+            ./gradlew clean test -Dcucumber.filter.tags="@bdd"
+          else
+            ./gradlew clean test
+          fi
+
+      # ----------------------------
+      # Save backend logs
+      # ----------------------------
+      - name: Save API container logs
+        if: always()
+        run: |
+          docker logs api-backend > api-backend.log 2>&1 || true
+
+      # ----------------------------
+      # Upload test artifacts
+      # ----------------------------
+      - name: Upload CI test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-test-reports
+          path: |
+            build/reports/tests/test
+            build/test-results/test
+          if-no-files-found: ignore
+
+      - name: Upload API backend logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-backend-logs
+          path: api-backend.log
+          if-no-files-found: ignore
+
+      # ----------------------------
+      # Cleanup
+      # ----------------------------
       - name: Stop API backend
         if: always()
         run: |
-          docker stop api-backend
-          docker rm api-backend
-
+          docker stop api-backend || true
+          docker rm api-backend || true
